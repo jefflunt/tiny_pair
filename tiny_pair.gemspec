@@ -1,8 +1,8 @@
 Gem::Specification.new do |s|
   s.name        = "tiny_pair"
   s.version     = "1.0.0"
-  s.description = "a tiny gem pair programming with a computer"
-  s.summary     = "a tiny gem pair programming with a computer"
+  s.description = "a tiny pair programming gem that uses an LLM"
+  s.summary     = "a tiny pair programming gem that uses an LLM"
   s.authors     = ["Jeff Lunt"]
   s.email       = "jefflunt@gmail.com"
   s.files       = ["lib/tiny_pair.rb"]
