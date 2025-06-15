@@ -1,3 +1,3 @@
 source 'https://rubygems.org'
 
-gem 'tiny_gemini'
+gem 'gemini-ai'
