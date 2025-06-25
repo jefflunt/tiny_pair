@@ -6,8 +6,8 @@ require 'gemini-ai'
 # get your Google Gemini API key ready, and then run the following code to see
 # what happens:
 #
-#   tp = TinyPair.new
-#   puts tp.(prompt: TinyPair::TEST_TEXT)
+#   tp = TinyPair.new(instructions: TinyPair::TEST_MODEL_INSTRUCTIONS)
+#   puts tp.prompt(TinyPair::TEST_TEXT)
 #
 # override model instructions if you like:
 #   tp = TinyPair.new(instructions: <your custom instructions>)
@@ -41,38 +41,46 @@ class TinyPair
     end
   TEST_TEXT
 
-  def initialize(api_key: ENV['TINY_PAIR_GEMINI_API_KEY'], model: ENV['TINY_PAIR_GEMINI_MODEL'])
-    @client = Gemini.new(
+  attr_reader :msgs
+
+  def initialize(api_key: ENV['TINY_PAIR_GEMINI_API_KEY'], model: ENV['TINY_PAIR_GEMINI_MODEL'], instructions: nil)
+    @gemini = Gemini.new(
       credentials: {
         service: 'generative-language-api',
         api_key: api_key,
       },
       options: { model: model, server_sent_events: false }
     )
+
+    @msgs = []
+
+    instructions&.strip!
+    @msgs << {
+      role: 'user',
+      parts: [{ text: instructions.strip }]
+    } if instructions && !instructions.empty?
   end
 
-  # tests: the raw text of a series of minitest tests
-  def llm(prompt:, instructions:)
-    instructions = instructions.lines.map(&:strip).select{|l| !l.empty? }.join(' ')
-    request_body = {
-# NOTE: this doesn't seem to work, and I'm not sure why, so I put it in the
-# prompt
-#      system_instruction: {
-#        role: 'user',
-#        parts: { text: instructions }
-#      },
-      contents: {
-        role: 'user',
-        parts: [
-          { text: instructions },
-          { text: prompt }
-        ]
-      }
-    }
+  # starts or continues a conversation with the msg
+  def prompt(msg)
+    if @msgs.length == 1
+      @msgs.last[:parts] << { text: msg }
+    else
+      @msgs << { role: 'user', parts: [{ text: msg }] }
+    end
 
-    @client
-      .generate_content(request_body)['candidates']
-      .first['content']['parts']
-      .first['text']
+    request_body = { contents: @msgs }
+    response = @gemini.generate_content(request_body)
+    candidate = response['candidates']&.first
+    model_content = candidate&.dig('content')
+
+    if model_content
+      @msgs << model_content
+      model_content.dig('parts', 0, 'text') || ""
+    else
+      error_message = "Failed to get a valid response from the API. Response: #{response.to_json}"
+      @msgs.pop
+      raise error_message
+    end
   end
 end
